@@ -31,3 +31,9 @@ func (e *UnterminatedStringError) Error() string {
 		e.column,
 	)
 }
+
+type IncompleteFractionError struct{}
+
+func (e *IncompleteFractionError) Error() string {
+	return "Attempted to parse a number as a fraction, but there were no digits after the dot"
+}

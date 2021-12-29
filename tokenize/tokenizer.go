@@ -3,6 +3,7 @@ package tokenize
 import (
 	"bufio"
 	"io"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -15,7 +16,6 @@ var singleRuneTokenType = map[rune]TokenID{
 	'{': TokenLeftCurly,
 	'}': TokenRightCurly,
 	',': TokenComma,
-	'.': TokenDot,
 	'-': TokenMinus,
 	'+': TokenPlus,
 	'*': TokenStar,
@@ -63,7 +63,11 @@ func (t *Tokenizer) Tokenize() ([]TokenHolder, error) {
 		case ',':
 			token = t.token(TokenComma)
 		case '.':
-			token = t.token(TokenDot)
+			if numberToken, err := t.number(); err == nil {
+				token = numberToken
+			} else {
+				token = t.token(TokenDot)
+			}
 		case '-':
 			token = t.token(TokenMinus)
 		case '+':
@@ -106,10 +110,18 @@ func (t *Tokenizer) Tokenize() ([]TokenHolder, error) {
 				return tokens, err
 			}
 		default:
-			return tokens, &UnexpectedCharacterError{
-				character: r,
-				line:      t.line,
-				column:    t.column,
+			if unicode.IsDigit(r) {
+				numberToken, err := t.number()
+				if err != nil {
+					return tokens, err
+				}
+				token = numberToken
+			} else {
+				return tokens, &UnexpectedCharacterError{
+					character: r,
+					line:      t.line,
+					column:    t.column,
+				}
 			}
 		}
 		tokens = append(tokens, token)
@@ -171,6 +183,41 @@ func (t *Tokenizer) string(delimiter rune, startLine int, startCol int) (StringT
 		sb.WriteRune(r)
 	}
 	token.value = sb.String()
+	return token, nil
+}
+
+func (t *Tokenizer) number() (NumberToken, error) {
+	token := NumberToken{
+		Token: Token{id: TokenNumber, line: t.line, column: t.column},
+	}
+	err := t.input.UnreadRune()
+	if err != nil {
+		return token, err
+	}
+	isFractional := false
+	var sb strings.Builder
+	for {
+		r, _, err := t.input.ReadRune()
+		if r == '.' {
+			if isFractional {
+				t.input.UnreadRune()
+				break
+			}
+			sb.WriteRune(r)
+			isFractional = true
+			continue
+		}
+		if err != nil || !unicode.IsDigit(r) {
+			t.input.UnreadRune()
+			break
+		}
+		sb.WriteRune(r)
+	}
+	value, err := strconv.ParseFloat(sb.String(), 64)
+	if err != nil {
+		return token, err
+	}
+	token.value = value
 	return token, nil
 }
 

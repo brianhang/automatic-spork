@@ -71,3 +71,12 @@ type StringToken struct {
 func (t StringToken) GetToken() Token {
 	return t.Token
 }
+
+type NumberToken struct {
+	Token
+	value float64
+}
+
+func (t NumberToken) GetToken() Token {
+	return t.Token
+}
