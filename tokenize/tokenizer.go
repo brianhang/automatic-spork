@@ -116,6 +116,12 @@ func (t *Tokenizer) Tokenize() ([]TokenHolder, error) {
 					return tokens, err
 				}
 				token = numberToken
+			} else if isRuneStartOfIdentifier(r) {
+				identifierToken, err := t.identifier()
+				if err != nil {
+					return tokens, err
+				}
+				token = identifierToken
 			} else {
 				return tokens, &UnexpectedCharacterError{
 					character: r,
@@ -219,6 +225,42 @@ func (t *Tokenizer) number() (NumberToken, error) {
 	}
 	token.value = value
 	return token, nil
+}
+
+func (t *Tokenizer) identifier() (IdentifierToken, error) {
+	token := IdentifierToken{
+		Token: Token{id: TokenIdentifier, line: t.line, column: t.column},
+	}
+	err := t.input.UnreadRune()
+	if err != nil {
+		return token, err
+	}
+	var sb strings.Builder
+	for {
+		r, _, err := t.input.ReadRune()
+		if err != nil {
+			t.input.UnreadRune()
+			return token, err
+		}
+		if !isIdentifierRune(r) {
+			err := t.input.UnreadRune()
+			if err != nil {
+				return token, err
+			}
+			break
+		}
+		sb.WriteRune(r)
+	}
+	token.value = sb.String()
+	return token, nil
+}
+
+func isRuneStartOfIdentifier(r rune) bool {
+	return r == '_' || unicode.IsLetter(r)
+}
+
+func isIdentifierRune(r rune) bool {
+	return isRuneStartOfIdentifier(r) || unicode.IsDigit(r)
 }
 
 func (t *Tokenizer) consumeIfNext(expected rune) bool {

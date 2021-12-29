@@ -80,3 +80,12 @@ type NumberToken struct {
 func (t NumberToken) GetToken() Token {
 	return t.Token
 }
+
+type IdentifierToken struct {
+	Token
+	value string
+}
+
+func (t IdentifierToken) GetToken() Token {
+	return t.Token
+}
