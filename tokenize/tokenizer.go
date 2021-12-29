@@ -57,11 +57,56 @@ func (t *Tokenizer) Tokenize() ([]Token, error) {
 			}
 			continue
 		}
-		return tokens, &UnexpectedCharacterError{
-			character: r,
-			line:      t.line,
-			column:    t.column,
+		var token Token
+		switch r {
+		case ',':
+			token = t.token(TokenComma)
+		case '.':
+			token = t.token(TokenDot)
+		case '-':
+			token = t.token(TokenMinus)
+		case '+':
+			token = t.token(TokenPlus)
+		case '*':
+			token = t.token(TokenStar)
+		case '/':
+			if t.consumeIfNext('/') {
+				t.consumeUntilEOL()
+				continue
+			}
+			token = t.token(TokenSlash)
+		case '!':
+			if t.consumeIfNext('=') {
+				token = t.token(TokenBangEqual)
+			} else {
+				token = t.token(TokenBang)
+			}
+		case '=':
+			if t.consumeIfNext('=') {
+				token = t.token(TokenEqualEqual)
+			} else {
+				token = t.token(TokenEqual)
+			}
+		case '>':
+			if t.consumeIfNext('=') {
+				token = t.token(TokenGreaterEqual)
+			} else {
+				token = t.token(TokenGreater)
+			}
+		case '<':
+			if t.consumeIfNext('=') {
+				token = t.token(TokenLessEqual)
+			} else {
+				token = t.token(TokenLess)
+			}
+		default:
+			return tokens, &UnexpectedCharacterError{
+				character: r,
+				line:      t.line,
+				column:    t.column,
+			}
 		}
+		tokens = append(tokens, token)
 	}
 	return tokens, nil
 }
@@ -71,5 +116,24 @@ func (t *Tokenizer) token(tokenID TokenID) Token {
 		id:     tokenID,
 		line:   t.line,
 		column: t.column,
+	}
+}
+
+func (t *Tokenizer) consumeIfNext(expected rune) bool {
+	r, _, err := t.input.ReadRune()
+	if err != nil || r != expected {
+		t.input.UnreadRune()
+		return false
+	}
+	return true
+}
+
+func (t *Tokenizer) consumeUntilEOL() error {
+	for {
+		r, _, err := t.input.ReadRune()
+		if err != nil || r == '\n' {
+			t.input.UnreadRune()
+			return err
+		}
 	}
 }
