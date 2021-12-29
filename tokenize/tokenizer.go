@@ -255,6 +255,9 @@ func (t *Tokenizer) identifier() (IdentifierToken, error) {
 	var sb strings.Builder
 	for {
 		r, _, err := t.input.ReadRune()
+		if err == io.EOF {
+			break
+		}
 		if err != nil {
 			t.input.UnreadRune()
 			return token, err
