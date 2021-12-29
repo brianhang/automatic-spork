@@ -16,3 +16,18 @@ func (e *UnexpectedCharacterError) Error() string {
 		e.column,
 	)
 }
+
+type UnterminatedStringError struct {
+	delimiter rune
+	line      int
+	column    int
+}
+
+func (e *UnterminatedStringError) Error() string {
+	return fmt.Sprintf(
+		"Expected a closing %c for string starting on line %d at column %d",
+		e.delimiter,
+		e.line,
+		e.column,
+	)
+}

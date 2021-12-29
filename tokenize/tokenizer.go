@@ -3,6 +3,7 @@ package tokenize
 import (
 	"bufio"
 	"io"
+	"strings"
 	"unicode"
 )
 
@@ -33,8 +34,8 @@ func NewTokenizer(input io.Reader) *Tokenizer {
 	return t
 }
 
-func (t *Tokenizer) Tokenize() ([]Token, error) {
-	tokens := make([]Token, 0)
+func (t *Tokenizer) Tokenize() ([]TokenHolder, error) {
+	tokens := make([]TokenHolder, 0)
 	for {
 		r, _, err := t.input.ReadRune()
 		if err == io.EOF {
@@ -57,7 +58,7 @@ func (t *Tokenizer) Tokenize() ([]Token, error) {
 			}
 			continue
 		}
-		var token Token
+		var token TokenHolder
 		switch r {
 		case ',':
 			token = t.token(TokenComma)
@@ -99,6 +100,11 @@ func (t *Tokenizer) Tokenize() ([]Token, error) {
 			} else {
 				token = t.token(TokenLess)
 			}
+		case '"', '\'':
+			token, err = t.string(r, t.line, t.column)
+			if err != nil {
+				return tokens, err
+			}
 		default:
 			return tokens, &UnexpectedCharacterError{
 				character: r,
@@ -117,6 +123,55 @@ func (t *Tokenizer) token(tokenID TokenID) Token {
 		line:   t.line,
 		column: t.column,
 	}
+}
+
+func (t *Tokenizer) string(delimiter rune, startLine int, startCol int) (StringToken, error) {
+	token := StringToken{
+		Token: Token{id: TokenString},
+	}
+	var sb strings.Builder
+	isEscaping := false
+	for {
+		r, _, err := t.input.ReadRune()
+		if err == io.EOF {
+			return token, &UnterminatedStringError{
+				delimiter: delimiter,
+				line:      startLine,
+				column:    startCol,
+			}
+		}
+		if err != nil {
+			return token, err
+		}
+		if isEscaping {
+			switch r {
+			case '\\', delimiter:
+				sb.WriteRune(r)
+			case 'n':
+				sb.WriteRune('\n')
+			case 'r':
+				sb.WriteRune('\r')
+			case 't':
+				sb.WriteRune('\t')
+			case 'b':
+				sb.WriteRune('\b')
+			case 'f':
+				sb.WriteRune('\f')
+			}
+			isEscaping = false
+			continue
+		}
+		if r == '\\' {
+			isEscaping = true
+			continue
+		}
+		if r == delimiter {
+			break
+		}
+		sb.WriteRune(r)
+	}
+	token.value = sb.String()
+	return token, nil
 }
 
 func (t *Tokenizer) consumeIfNext(expected rune) bool {

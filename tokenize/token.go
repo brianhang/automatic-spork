@@ -49,8 +49,25 @@ const (
 	TokenThis
 )
 
+type TokenHolder interface {
+	GetToken() Token
+}
+
 type Token struct {
 	id     TokenID
 	line   int
 	column int
+}
+
+func (t Token) GetToken() Token {
+	return t
+}
+
+type StringToken struct {
+	Token
+	value string
+}
+
+func (t StringToken) GetToken() Token {
+	return t.Token
 }
