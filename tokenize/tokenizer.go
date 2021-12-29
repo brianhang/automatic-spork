@@ -22,6 +22,23 @@ var singleRuneTokenType = map[rune]TokenID{
 	';': TokenSemicolon,
 }
 
+var keywordTokenTypes = map[string]TokenID{
+	"true":   TokenTrue,
+	"false":  TokenFalse,
+	"nil":    TokenNil,
+	"and":    TokenAnd,
+	"or":     TokenOr,
+	"if":     TokenIf,
+	"else":   TokenElse,
+	"for":    TokenFor,
+	"while":  TokenWhile,
+	"func":   TokenFunc,
+	"return": TokenReturn,
+	"class":  TokenClass,
+	"super":  TokenSuper,
+	"this":   TokenThis,
+}
+
 type Tokenizer struct {
 	input  *bufio.Reader
 	line   int
@@ -251,7 +268,12 @@ func (t *Tokenizer) identifier() (IdentifierToken, error) {
 		}
 		sb.WriteRune(r)
 	}
-	token.value = sb.String()
+	value := sb.String()
+	if keywordTokenType, ok := keywordTokenTypes[value]; ok {
+		token.id = keywordTokenType
+	} else {
+		token.value = value
+	}
 	return token, nil
 }
 
