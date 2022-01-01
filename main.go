@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"brianhang.me/interpreter/parser"
 	"brianhang.me/interpreter/tokenize"
 )
 
@@ -14,7 +15,10 @@ func main() {
 		fmt.Printf("Failed to tokenize: %s\n", err)
 		return
 	}
-	for _, token := range tokens {
-		fmt.Println(token)
+	parser := parser.NewParser(&tokens)
+	nodes, err := parser.Parse()
+	if err != nil {
+		fmt.Printf("Failed to parse: %s\n", err)
 	}
+	fmt.Printf("%s\n", nodes)
 }
