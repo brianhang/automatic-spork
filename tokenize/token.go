@@ -51,6 +51,9 @@ const (
 
 type TokenHolder interface {
 	GetToken() Token
+	GetID() TokenID
+	GetLine() int
+	GetColumn() int
 }
 
 type Token struct {
@@ -63,6 +66,16 @@ func (t Token) GetToken() Token {
 	return t
 }
 
+func (t Token) GetID() TokenID {
+	return t.id
+}
+func (t Token) GetLine() int {
+	return t.line
+}
+func (t Token) GetColumn() int {
+	return t.column
+}
+
 type StringToken struct {
 	Token
 	value string
@@ -70,6 +83,15 @@ type StringToken struct {
 
 func (t StringToken) GetToken() Token {
 	return t.Token
+}
+func (t StringToken) GetID() TokenID {
+	return t.id
+}
+func (t StringToken) GetLine() int {
+	return t.line
+}
+func (t StringToken) GetColumn() int {
+	return t.column
 }
 
 type NumberToken struct {
@@ -80,6 +102,15 @@ type NumberToken struct {
 func (t NumberToken) GetToken() Token {
 	return t.Token
 }
+func (t NumberToken) GetID() TokenID {
+	return t.id
+}
+func (t NumberToken) GetLine() int {
+	return t.line
+}
+func (t NumberToken) GetColumn() int {
+	return t.column
+}
 
 type IdentifierToken struct {
 	Token
@@ -88,4 +119,13 @@ type IdentifierToken struct {
 
 func (t IdentifierToken) GetToken() Token {
 	return t.Token
+}
+func (t IdentifierToken) GetID() TokenID {
+	return t.id
+}
+func (t IdentifierToken) GetLine() int {
+	return t.line
+}
+func (t IdentifierToken) GetColumn() int {
+	return t.column
 }

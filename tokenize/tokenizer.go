@@ -62,7 +62,7 @@ func (t *Tokenizer) Tokenize() ([]TokenHolder, error) {
 			return tokens, err
 		}
 
-		t.column += 1
+		t.column++
 
 		if tokenID, ok := singleRuneTokenType[r]; ok {
 			tokens = append(tokens, t.token(tokenID))
@@ -122,7 +122,7 @@ func (t *Tokenizer) Tokenize() ([]TokenHolder, error) {
 				token = t.token(TokenLess)
 			}
 		case '"', '\'':
-			token, err = t.string(r, t.line, t.column)
+			token, err = t.string(r)
 			if err != nil {
 				return tokens, err
 			}
@@ -160,19 +160,20 @@ func (t *Tokenizer) token(tokenID TokenID) Token {
 	}
 }
 
-func (t *Tokenizer) string(delimiter rune, startLine int, startCol int) (StringToken, error) {
+func (t *Tokenizer) string(delimiter rune) (StringToken, error) {
 	token := StringToken{
-		Token: Token{id: TokenString},
+		Token: Token{id: TokenString, line: t.line, column: t.column},
 	}
 	var sb strings.Builder
 	isEscaping := false
 	for {
 		r, _, err := t.input.ReadRune()
+		t.column++
 		if err == io.EOF {
 			return token, &UnterminatedStringError{
 				delimiter: delimiter,
-				line:      startLine,
-				column:    startCol,
+				line:      token.line,
+				column:    token.column,
 			}
 		}
 		if err != nil {
@@ -234,6 +235,7 @@ func (t *Tokenizer) number() (NumberToken, error) {
 			t.input.UnreadRune()
 			break
 		}
+		t.column++
 		sb.WriteRune(r)
 	}
 	value, err := strconv.ParseFloat(sb.String(), 64)
@@ -249,6 +251,7 @@ func (t *Tokenizer) identifier() (IdentifierToken, error) {
 		Token: Token{id: TokenIdentifier, line: t.line, column: t.column},
 	}
 	err := t.input.UnreadRune()
+	t.column--
 	if err != nil {
 		return token, err
 	}
@@ -269,6 +272,7 @@ func (t *Tokenizer) identifier() (IdentifierToken, error) {
 			}
 			break
 		}
+		t.column++
 		sb.WriteRune(r)
 	}
 	value := sb.String()

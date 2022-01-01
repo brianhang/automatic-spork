@@ -88,6 +88,48 @@ func TestTokenizeString(t *testing.T) {
 	assert.Contains(t, err.Error(), "Expected a closing '")
 }
 
+func TestTokenPosition(t *testing.T) {
+	cases := []struct {
+		source        string
+		expectedLines []int
+		expectedCols  []int
+	}{
+		{
+			"+ -\n* /",
+			[]int{1, 1, 2, 2},
+			[]int{1, 3, 1, 3},
+		},
+		{
+			"while (true)\n    for (",
+			[]int{1, 1, 1, 1, 2, 2},
+			[]int{1, 7, 8, 12, 5, 9},
+		},
+		{
+			"'hello world' 3.14 foo",
+			[]int{1, 1, 1},
+			[]int{1, 15, 20},
+		},
+		{
+			".1234units",
+			[]int{1, 1},
+			[]int{1, 6},
+		},
+	}
+	for _, test := range cases {
+		source := test.source
+		tokens := tokenizeString(t, source)
+		numTokens := len(tokens)
+		lines := make([]int, numTokens)
+		cols := make([]int, numTokens)
+		for i, token := range tokens {
+			lines[i] = token.GetLine()
+			cols[i] = token.GetColumn()
+		}
+		assert.Equal(t, test.expectedLines, lines, "Token lines are incorrect for \"%s\"", source)
+		assert.Equal(t, test.expectedCols, cols, "Token columns are incorrect for \"%s\"", source)
+	}
+}
+
 func tokenizeString(t *testing.T, source string) []TokenHolder {
 	tokenizer := NewTokenizer(strings.NewReader(source))
 	tokens, err := tokenizer.Tokenize()
