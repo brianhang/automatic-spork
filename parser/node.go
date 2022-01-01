@@ -15,6 +15,11 @@ type ExpressionNode interface {
 	Node
 }
 
+type AtomNode interface {
+	ExpressionNode
+	GetToken() tokenize.TokenHolder
+}
+
 type ConditionalNode struct {
 	If        tokenize.IdentifierToken
 	Condition ExpressionNode
@@ -61,6 +66,7 @@ type FuncNode struct {
 	LeftParen  tokenize.TokenHolder
 	Params     []tokenize.IdentifierToken
 	RightParen tokenize.TokenHolder
+	Body       BlockNode
 }
 
 type ReturnNode struct {

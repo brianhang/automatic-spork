@@ -11,9 +11,7 @@ import (
 //
 // expression      ::= assignment
 //                   | block
-//                   | class
 //                   | conditional
-//                   | func
 //
 // conditional     ::= 'if' '(' expression ')' statement ('else' statement)?
 // while           ::= 'while' '(' expression ')' statement
@@ -40,9 +38,12 @@ import (
 // factor          ::= unary (('*' | '/') unary)*
 // unary           ::= ('!' | '-') unary | call
 // args            ::= expression (',' expression)* ','?
-// call            ::= atom ('(' args? ')' | '.' IDENTIFIER)*
-// atom            ::= '(' expression ')'
-//                   | IDENTIFIER
+// call            ::= expresison2 ('(' args? ')' | '.' IDENTIFIER)*
+// expression2     ::= '(' expression ')'
+//                   | class
+//                   | func
+//                   | atom
+// atom            ::= IDENTIFIER
 //                   | NUMBER
 //                   | STRING
 //                   | 'true' | 'false'
@@ -101,7 +102,7 @@ func (p *Parser) maybeStatement() (Node, error) {
 	}
 }
 
-func (p *Parser) expression() (Node, error) {
+func (p *Parser) expression() (ExpressionNode, error) {
 	expression, err := p.maybeExpression()
 	if err != nil {
 		return expression, err
@@ -131,6 +132,21 @@ func (p *Parser) maybeExpression() (Node, error) {
 	}
 }
 
+func (p *Parser) expression2() (ExpressionNode, error) {
+	token := p.peek()
+	if token != nil {
+		switch token.GetID() {
+		case tokenize.TokenClass:
+			return p.class()
+		case tokenize.TokenFunc:
+			return p.funcExpr()
+		case tokenize.TokenLeftParen:
+			return p.groupedExpr()
+		}
+	}
+	return p.atom()
+}
+
 var atomicTokenIDs = []tokenize.TokenID{
 	tokenize.TokenIdentifier,
 	tokenize.TokenNumber,
@@ -141,15 +157,6 @@ var atomicTokenIDs = []tokenize.TokenID{
 }
 
 func (p *Parser) atom() (ExpressionNode, error) {
-	leftParen := p.maybeMatch(tokenize.TokenLeftParen)
-	if leftParen != nil {
-		expression, err := p.expression()
-		if err != nil {
-			return expression, err
-		}
-		_, err = p.match(tokenize.TokenRightParen)
-		return expression, err
-	}
 	node := LiteralNode{}
 	for _, tokenID := range atomicTokenIDs {
 		value := p.maybeMatch(tokenID)
@@ -158,7 +165,23 @@ func (p *Parser) atom() (ExpressionNode, error) {
 			return node, nil
 		}
 	}
+	token := p.peek()
+	if token != nil {
+		return node, &UnexpectedTokenError{token: token}
+	}
 	return node, &NoValueError{last: p.last()}
+}
+
+func (p *Parser) groupedExpr() (ExpressionNode, error) {
+	if _, err := p.match(tokenize.TokenLeftParen); err != nil {
+		return nil, err
+	}
+	expr, err := p.expression()
+	if err != nil {
+		return expr, err
+	}
+	_, err = p.match(tokenize.TokenRightParen)
+	return expr, err
 }
 
 var unaryOperatorTokenIDs = []tokenize.TokenID{
@@ -168,7 +191,7 @@ var unaryOperatorTokenIDs = []tokenize.TokenID{
 
 func (p *Parser) call() (ExpressionNode, error) {
 	var err error
-	node, err := p.atom()
+	node, err := p.expression2()
 	if err != nil {
 		return node, err
 	}
@@ -181,7 +204,7 @@ func (p *Parser) call() (ExpressionNode, error) {
 		switch nextToken.GetID() {
 		case tokenize.TokenLeftParen:
 			call := CallNode{Function: node, LeftParen: p.consume()}
-			call.Args, err = p.args()
+			call.Args, err = p.expressionList(p.expression, tokenize.TokenRightParen)
 			if err != nil {
 				return call, err
 			}
@@ -191,6 +214,7 @@ func (p *Parser) call() (ExpressionNode, error) {
 			}
 			node = call
 		case tokenize.TokenDot:
+			p.consume()
 			lookup := LookupNode{Value: node}
 			lookup.Key, err = p.matchIdentifier(tokenize.TokenIdentifier)
 			if err != nil {
@@ -204,26 +228,36 @@ func (p *Parser) call() (ExpressionNode, error) {
 	return node, nil
 }
 
-func (p *Parser) args() ([]ExpressionNode, error) {
-	isFirstArg := true
-	args := make([]ExpressionNode, 0)
+func (p *Parser) expressionList(
+	getExpression func() (ExpressionNode, error),
+	closingToken tokenize.TokenID,
+) ([]ExpressionNode, error) {
+	expressions := make([]ExpressionNode, 0)
+	isFirstExpr := true
 	for {
-		if isFirstArg {
-			isFirstArg = false
-		} else {
-			p.match(tokenize.TokenComma)
-		}
-		arg, err := p.maybeExpression()
-		if err != nil {
-			return args, err
-		}
-		if arg == nil {
+		close := p.peek()
+		if close != nil && close.GetID() == closingToken {
 			break
 		}
-		args = append(args, arg)
+		if !isFirstExpr {
+			_, err := p.match(tokenize.TokenComma)
+			if err != nil {
+				return expressions, err
+			}
+			// Trailing comma
+			close := p.peek()
+			if close != nil && close.GetID() == closingToken {
+				break
+			}
+		}
+		expr, err := getExpression()
+		if err != nil {
+			return expressions, err
+		}
+		expressions = append(expressions, expr)
+		isFirstExpr = false
 	}
-	p.maybeMatch(tokenize.TokenComma)
-	return args, nil
+	return expressions, nil
 }
 
 func (p *Parser) unary() (ExpressionNode, error) {
@@ -395,27 +429,27 @@ func (p *Parser) funcExpr() (FuncNode, error) {
 	if err != nil {
 		return node, err
 	}
-	isFirstParam := true
-	for {
-		if isFirstParam {
-			isFirstParam = false
-		} else {
-			p.match(tokenize.TokenComma)
-		}
-		param, err := p.match(tokenize.TokenIdentifier)
-		if err != nil {
-			return node, err
-		}
-		if param == nil {
-			break
-		}
-		node.Params = append(node.Params, param.(tokenize.IdentifierToken))
-	}
-	p.maybeMatch(tokenize.TokenComma)
-	if _, err = p.match(tokenize.TokenRightParen); err != nil {
+	node.LeftParen, err = p.match(tokenize.TokenLeftParen)
+	if err != nil {
 		return node, err
 	}
-	return node, nil
+	paramNodes, err := p.expressionList(p.atom, tokenize.TokenRightParen)
+	if err != nil {
+		return node, err
+	}
+	node.RightParen, err = p.match(tokenize.TokenRightParen)
+	if err != nil {
+		return node, err
+	}
+	for _, paramNode := range paramNodes {
+		literalNode, ok := paramNode.(LiteralNode)
+		if !ok || literalNode.Value.GetID() != tokenize.TokenIdentifier {
+			return node, &InvalidFuncParamError{actual: paramNode}
+		}
+		node.Params = append(node.Params, literalNode.Value.(tokenize.IdentifierToken))
+	}
+	node.Body, err = p.block()
+	return node, err
 }
 
 func (p *Parser) assignment() (ExpressionNode, error) {
@@ -448,6 +482,9 @@ func (p *Parser) block() (BlockNode, error) {
 		return node, err
 	}
 	for {
+		if close := p.peek(); close != nil && close.GetID() == tokenize.TokenRightCurly {
+			break
+		}
 		statement, err := p.maybeStatement()
 		if err != nil {
 			return node, err
@@ -590,7 +627,7 @@ func (p *Parser) matchIdentifier(id tokenize.TokenID) (tokenize.IdentifierToken,
 
 func (p *Parser) tokenAtOffset(offset int) tokenize.TokenHolder {
 	idx := p.curTokenIdx + offset
-	if p.tokens == nil || idx >= len(*p.tokens) {
+	if p.tokens == nil || idx >= len(*p.tokens) || idx < 0 {
 		return nil
 	}
 	return (*p.tokens)[idx]

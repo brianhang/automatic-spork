@@ -34,9 +34,10 @@ func (e *ExpectedTokenError) Error() string {
 			return fmt.Sprintf("Expected token %d", e.expected)
 		}
 		return fmt.Sprintf(
-			"Expected token %d near line %d",
+			"Expected token %d near line %d and column %d",
 			e.expected,
 			last.GetLine(),
+			last.GetColumn(),
 		)
 	}
 	return fmt.Sprintf(
@@ -96,5 +97,19 @@ func (e *NoValueError) Error() string {
 		"Expected a value near line %d at column %d, but none was provided",
 		last.GetLine(),
 		last.GetColumn(),
+	)
+}
+
+type InvalidFuncParamError struct {
+	actual Node
+}
+
+func (e *InvalidFuncParamError) Error() string {
+	token := e.actual.GetStartToken()
+	return fmt.Sprintf(
+		"Expected an identifier for a function param, but got \"%s\" on line %d at column %d",
+		token,
+		token.GetLine(),
+		token.GetColumn(),
 	)
 }
