@@ -1,5 +1,10 @@
 package tokenize
 
+import (
+	"fmt"
+	"strconv"
+)
+
 type TokenID int
 
 const (
@@ -49,14 +54,66 @@ const (
 	TokenThis
 )
 
+var tokenToString = map[TokenID]string{
+	TokenEOF:        "EOF",
+	TokenLeftParen:  "(",
+	TokenRightParen: ")",
+	TokenLeftCurly:  "{",
+	TokenRightCurly: "}",
+
+	TokenComma:     ",",
+	TokenDot:       ".",
+	TokenMinus:     "-",
+	TokenPlus:      "+",
+	TokenStar:      "*",
+	TokenSlash:     "/",
+	TokenSemicolon: ";",
+
+	TokenBang:         "!",
+	TokenBangEqual:    "!=",
+	TokenEqual:        "=",
+	TokenEqualEqual:   "==",
+	TokenGreater:      ">",
+	TokenGreaterEqual: ">=",
+	TokenLess:         "<",
+	TokenLessEqual:    "<=",
+
+	TokenIdentifier: "identifier",
+	TokenString:     "string",
+	TokenNumber:     "number",
+	TokenTrue:       "true",
+	TokenFalse:      "false",
+	TokenNil:        "nil",
+
+	TokenAnd:   "and",
+	TokenOr:    "or",
+	TokenIf:    "if",
+	TokenElse:  "else",
+	TokenFor:   "for",
+	TokenWhile: "while",
+
+	TokenFunc:   "func",
+	TokenReturn: "return",
+
+	TokenClass: "class",
+	TokenSuper: "super",
+	TokenThis:  "this",
+}
+
+func (id TokenID) String() string {
+	return tokenToString[id]
+}
+
 type TokenHolder interface {
 	GetToken() Token
 	GetID() TokenID
 	GetLine() int
 	GetColumn() int
+	String() string
 }
 
 type Token struct {
+	TokenHolder
 	id     TokenID
 	line   int
 	column int
@@ -74,6 +131,9 @@ func (t Token) GetLine() int {
 }
 func (t Token) GetColumn() int {
 	return t.column
+}
+func (t Token) String() string {
+	return tokenToString[t.id]
 }
 
 type StringToken struct {
@@ -93,6 +153,9 @@ func (t StringToken) GetLine() int {
 func (t StringToken) GetColumn() int {
 	return t.column
 }
+func (t StringToken) String() string {
+	return fmt.Sprintf("\"%s\"", t.value)
+}
 
 type NumberToken struct {
 	Token
@@ -111,6 +174,9 @@ func (t NumberToken) GetLine() int {
 func (t NumberToken) GetColumn() int {
 	return t.column
 }
+func (t NumberToken) String() string {
+	return strconv.FormatFloat(t.value, 'f', -1, 64)
+}
 
 type IdentifierToken struct {
 	Token
@@ -128,4 +194,10 @@ func (t IdentifierToken) GetLine() int {
 }
 func (t IdentifierToken) GetColumn() int {
 	return t.column
+}
+func (t IdentifierToken) GetValue() string {
+	return t.value
+}
+func (t IdentifierToken) String() string {
+	return t.value
 }

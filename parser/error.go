@@ -13,8 +13,8 @@ type UnexpectedTokenError struct {
 func (e *UnexpectedTokenError) Error() string {
 	token := e.token
 	return fmt.Sprintf(
-		"Unexpected token %s on line %d at column %d",
-		token,
+		"Unexpected token \"%s\" on line %d at column %d",
+		token.String(),
 		token.GetLine(),
 		token.GetColumn(),
 	)
@@ -31,17 +31,17 @@ func (e *ExpectedTokenError) Error() string {
 	if actual == nil {
 		last := e.last
 		if last == nil {
-			return fmt.Sprintf("Expected token %d", e.expected)
+			return fmt.Sprintf("Expected token \"%s\"", e.expected)
 		}
 		return fmt.Sprintf(
-			"Expected token %d near line %d and column %d",
+			"Expected token \"%s\" near line %d and column %d",
 			e.expected,
 			last.GetLine(),
 			last.GetColumn(),
 		)
 	}
 	return fmt.Sprintf(
-		"Expected token %d, but got %s instead on line %d at column %d",
+		"Expected token \"%s\", but got \"%s\" instead on line %d at column %d",
 		e.expected,
 		actual,
 		actual.GetLine(),
